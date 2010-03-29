@@ -1,4 +1,5 @@
 require "webrat/core/save_and_open_page"
+
 require "webrat/selenium/selenium_rc_server"
 require "webrat/selenium/application_server_factory"
 require "webrat/selenium/application_servers/base"
@@ -21,11 +22,61 @@ module Webrat
     def selenium
       session.selenium
     end
+
+    def is_text_present(text_finder)
+      puts text_finder
+      body.include? text_finder
+    end
   end
 
   class SeleniumSession
     include Webrat::SaveAndOpenPage
     include Webrat::Selenium::SilenceStream
+    extend Forwardable
+
+# Add more methods of webrat/core/session when needed
+    def_delegators :current_scope, :click_link_within, :clicks_link_within
+    def_delegators :current_scope, :click_link,         :clicks_link
+    def_delegators :current_scope, :fill_in,            :fills_in
+    def_delegators :current_scope, :click_button,       :clicks_button
+    def_delegators :current_scope, :select,             :selects
+    def_delegators :current_scope, :check,              :checks
+    def_delegators :current_scope, :choose,             :chooses
+    def_delegators :current_scope, :uncheck,            :unchecks
+    def_delegators :current_scope, :fire_event, :key_up, :key_down
+    
+    
+
+    def within(selector)
+      scopes.push(::Webrat::Selenium::Scope.from_scope(self, current_scope, selector))
+      ret = yield(current_scope)
+      scopes.pop
+      return ret
+    end
+
+    def current_scope
+      scopes.last || page_scope
+    end
+
+    def page_scope
+      ::Webrat::Selenium::Scope.from_page(self, response, response_body)
+    end
+
+    def scopes
+      @_scopes ||= []
+    end
+
+    def xml_content_type?
+      false
+    end
+
+    def current_dom #:nodoc:
+      current_scope.dom
+    end
+
+    def elements
+      {}
+    end    
 
     def initialize(*args) # :nodoc:
     end
@@ -43,13 +94,6 @@ module Webrat
 
     webrat_deprecate :visits, :visit
 
-    def fill_in(field_identifier, options)
-      locator = "webrat=#{field_identifier}"
-      selenium.wait_for_element locator, :timeout_in_seconds => 5
-      selenium.type(locator, "#{options[:with]}")
-    end
-
-    webrat_deprecate :fills_in, :fill_in
 
     def response
       SeleniumResponse.new(self, response_body)
@@ -63,89 +107,11 @@ module Webrat
       selenium.location
     end
 
-    def click_button(button_text_or_regexp = nil, options = {})
-      if button_text_or_regexp.is_a?(Hash) && options == {}
-        pattern, options = nil, button_text_or_regexp
-      elsif button_text_or_regexp
-        pattern = adjust_if_regexp(button_text_or_regexp)
-      end
-      pattern ||= '*'
-      locator = "button=#{pattern}"
 
-      selenium.wait_for_element locator, :timeout_in_seconds => 5
-      selenium.click locator
-    end
 
-    webrat_deprecate :clicks_button, :click_button
 
-    def click_link(link_text_or_regexp, options = {})
-      if link_text_or_regexp.is_a?(Regexp)
-        pattern = "evalregex:#{link_text_or_regexp.inspect}"
-      else
-        pattern = link_text_or_regexp.to_s
-      end
 
-      locator = "webratlink=#{pattern}"
-      selenium.wait_for_element locator, :timeout_in_seconds => 5
-      selenium.click locator
-    end
 
-    webrat_deprecate :clicks_link, :click_link
-
-    def click_link_within(selector, link_text, options = {})
-      locator = "webratlinkwithin=#{selector}|#{link_text}"
-      selenium.wait_for_element locator, :timeout_in_seconds => 5
-      selenium.click locator
-    end
-
-    webrat_deprecate :clicks_link_within, :click_link_within
-
-    def select(option_text, options = {})
-      id_or_name_or_label = options[:from]
-
-      if id_or_name_or_label
-        select_locator = "webrat=#{id_or_name_or_label}"
-      else
-        select_locator = "webratselectwithoption=#{option_text}"
-      end
-
-      selenium.wait_for_element select_locator, :timeout_in_seconds => 5
-      selenium.select(select_locator, option_text)
-    end
-
-    webrat_deprecate :selects, :select
-
-    def choose(label_text)
-      locator = "webrat=#{label_text}"
-      selenium.wait_for_element locator, :timeout_in_seconds => 5
-      selenium.click locator
-    end
-
-    webrat_deprecate :chooses, :choose
-
-    def check(label_text)
-      locator = "webrat=#{label_text}"
-      selenium.wait_for_element locator, :timeout_in_seconds => 5
-      selenium.click locator
-    end
-    alias_method :uncheck, :check
-
-    webrat_deprecate :checks, :check
-
-    def fire_event(field_identifier, event)
-      locator = "webrat=#{Regexp.escape(field_identifier)}"
-      selenium.fire_event(locator, "#{event}")
-    end
-
-    def key_down(field_identifier, key_code)
-      locator = "webrat=#{Regexp.escape(field_identifier)}"
-      selenium.key_down(locator, key_code)
-    end
-
-    def key_up(field_identifier, key_code)
-      locator = "webrat=#{Regexp.escape(field_identifier)}"
-      selenium.key_up(locator, key_code)
-    end
 
     def wait_for(params={})
       timeout = params[:timeout] || 5
