@@ -183,6 +183,26 @@ module Webrat
         end
       end
 
+      def field_labeled(field_identifier)
+        unless @selector
+          locator="webrat=#{field_identifier}"
+        else
+          locator="webratwithin=#{@scope}|#{field_identifier}"
+        end
+        selenium.wait_for_element locator, :timeout_in_seconds=>5
+        Selenium::Field.new(selenium.field locator)
+        
+      end
+
+      protected
+      def adjust_if_regexp(text_or_regexp) #:nodoc:
+        if text_or_regexp.is_a?(Regexp)
+          "evalregex:#{text_or_regexp.inspect}"
+        else
+          "evalregex:/#{text_or_regexp}/"
+        end
+      end
+      
       
     end
 

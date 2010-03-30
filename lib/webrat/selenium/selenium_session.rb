@@ -3,6 +3,7 @@ require "webrat/core/save_and_open_page"
 require "webrat/selenium/selenium_rc_server"
 require "webrat/selenium/application_server_factory"
 require "webrat/selenium/application_servers/base"
+require "webrat/selenium/elements"
 
 require "selenium"
 
@@ -34,7 +35,6 @@ module Webrat
     include Webrat::Selenium::SilenceStream
     extend Forwardable
 
-# Add more methods of webrat/core/session when needed
     def_delegators :current_scope, :click_link_within, :clicks_link_within
     def_delegators :current_scope, :click_link,         :clicks_link
     def_delegators :current_scope, :fill_in,            :fills_in
@@ -43,9 +43,7 @@ module Webrat
     def_delegators :current_scope, :check,              :checks
     def_delegators :current_scope, :choose,             :chooses
     def_delegators :current_scope, :uncheck,            :unchecks
-    def_delegators :current_scope, :fire_event, :key_up, :key_down
-    
-    
+    def_delegators :current_scope, :fire_event, :key_up, :key_down, :field_labeled
 
     def within(selector)
       scopes.push(::Webrat::Selenium::Scope.from_scope(self, current_scope, selector))
@@ -208,13 +206,6 @@ EOS
       end
     end
 
-    def adjust_if_regexp(text_or_regexp) #:nodoc:
-      if text_or_regexp.is_a?(Regexp)
-        "evalregex:#{text_or_regexp.inspect}"
-      else
-        "evalregex:/#{text_or_regexp}/"
-      end
-    end
 
     def extend_selenium #:nodoc:
       extensions_file = File.join(File.dirname(__FILE__), "selenium_extensions.js")
