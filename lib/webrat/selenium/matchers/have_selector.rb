@@ -2,13 +2,24 @@ module Webrat
   module Selenium
     module Matchers
       class HaveSelector
-        def initialize(expected)
+        def initialize(expected,options={})
           @expected = expected
+          @options=options
+          @occurences=0
         end
 
         def matches?(response)
-          response.session.wait_for do
+          found=response.session.wait_for do
             response.selenium.is_element_present("css=#{@expected}")
+          end
+          if @options[:count]
+            xpath=Nokogiri::CSS.parse(@expected.to_s).map do |ast|
+              ast.to_xpath
+            end.first
+            @occurences=response.selenium.get_xpath_count(xpath)
+            @occurences==@options[:count]
+          else
+            found
           end
           rescue Webrat::TimeoutError
             false
@@ -25,7 +36,11 @@ module Webrat
         # ==== Returns
         # String:: The failure message.
         def failure_message
-          "expected following text to match selector #{@expected}:\n#{@document}"
+          if @options[:count]
+            "expected following text to match selector #{@expected} #{@options[:count]} times, but found it #{@occurences} times:\n#{@document} "
+          else
+            "expected following text to match selector #{@expected}:\n#{@document}"
+          end
         end
 
         # ==== Returns
@@ -35,14 +50,14 @@ module Webrat
         end
       end
 
-      def have_selector(content)
-        HaveSelector.new(content)
+      def have_selector(content,options={})
+        HaveSelector.new(content,options)
       end
 
       # Asserts that the body of the response contains
       # the supplied selector
-      def assert_have_selector(expected)
-        hs = HaveSelector.new(expected)
+      def assert_have_selector(expected,options={})
+        hs = HaveSelector.new(expected,options)
         assert hs.matches?(response), hs.failure_message
       end
 
