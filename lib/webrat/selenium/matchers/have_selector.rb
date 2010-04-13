@@ -9,7 +9,7 @@ module Webrat
         end
 
         def matches?(response)
-          found=response.session.wait_for do
+          found=response.session.wait_for :timeout=>10 do
             response.selenium.is_element_present("css=#{@expected}")
           end
           if @options[:count]
